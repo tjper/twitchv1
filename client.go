@@ -5,6 +5,7 @@
 package twitch
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"net/http"
@@ -77,17 +78,17 @@ func (c *Client) Close() {
 const StreamsURL = "https://api.twitch.tv/helix/streams"
 
 // Streams retrieves streams as specified by the by function.
-func (c *Client) Streams(by StreamsBy) (io.ReadCloser, error) {
+func (c *Client) Streams(by StreamsBy) (*bytes.Buffer, error) {
 	return by()
 }
 
 // StreamsBy is a function that retrieves a set of Stream objects.
-type StreamsBy func() (io.ReadCloser, error)
+type StreamsBy func() (*bytes.Buffer, error)
 
 // ByUserLogin returns a method by which to retrieve a set of Stream objects by
 // the specified userLogin.
 func (c *Client) ByUserLogin(userLogin string) StreamsBy {
-	return func() (io.ReadCloser, error) {
+	return func() (*bytes.Buffer, error) {
 		var url = StreamsURL + "?user_login=" + userLogin
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -100,10 +101,16 @@ func (c *Client) ByUserLogin(userLogin string) StreamsBy {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to retrieve Streams by userLogin %s", userLogin)
 		}
+		defer resp.Body.Close()
+
 		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
 			return nil, errors.Errorf("failed to retrieve Streams by userLogin %s, StatusCode = %v", userLogin, resp.StatusCode)
 		}
-		return resp.Body, nil
+
+		var streams = new(bytes.Buffer)
+		if _, err := io.Copy(streams, resp.Body); err != nil {
+			return nil, errors.Wrap(err, "failed to Copy streams into buffer")
+		}
+		return streams, nil
 	}
 }

@@ -1,7 +1,6 @@
 package twitch_test
 
 import (
-	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -28,12 +27,7 @@ func TestStreamsByUserLogin(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected err \"%s\"", err)
 			}
-			defer streams.Close()
-			b, err := ioutil.ReadAll(streams)
-			if err != nil {
-				t.Fatalf("unexpected err \"%s\"", err)
-			}
-			if len(b) == 0 {
+			if streams.Len() == 0 {
 				t.Fatalf("expected non-empty streams to be returned\nstreams = %v", streams)
 			}
 		})
